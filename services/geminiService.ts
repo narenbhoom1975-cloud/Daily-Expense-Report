@@ -15,7 +15,7 @@ const blobToBase64 = (blob: Blob): Promise<string> => {
 };
 
 export const processAudioWithGemini = async (audioBlob: Blob): Promise<ExpenseResponse> => {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  const apiKey = const apiKey = "test-api-key";
 
   if (!apiKey) {
     throw new Error("API Key is missing. Please set API_KEY in your environment variables.");
