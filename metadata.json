@@ -1,0 +1,7 @@
+{
+  "name": "Voice Expense Tracker AI",
+  "description": "A smart expense tracker that uses Gemini AI to listen to your expenses in Hindi or English, transcribe them, and automatically categorize and calculate totals with high accuracy.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
