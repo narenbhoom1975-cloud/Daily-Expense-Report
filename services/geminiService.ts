@@ -15,7 +15,7 @@ const blobToBase64 = (blob: Blob): Promise<string> => {
 };
 
 export const processAudioWithGemini = async (audioBlob: Blob): Promise<ExpenseResponse> => {
-  const apiKey = const apiKey = "test-api-key";
+  const apiKey = "test-key-123";
 
   if (!apiKey) {
     throw new Error("API Key is missing. Please set API_KEY in your environment variables.");
