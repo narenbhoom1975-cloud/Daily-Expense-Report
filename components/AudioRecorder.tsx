@@ -85,7 +85,9 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecordingComplet
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' });
+        // Use the actual mime type of the recorder to prevent format mismatch
+        const mimeType = mediaRecorder.mimeType || 'audio/webm';
+        const blob = new Blob(chunks, { type: mimeType });
         onRecordingComplete(blob);
         stopVisualizer();
         

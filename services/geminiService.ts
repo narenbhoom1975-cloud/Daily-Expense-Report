@@ -21,6 +21,20 @@ const blobToBase64 = (blob: Blob): Promise<string> => {
   });
 };
 
+// Retry helper function to handle transient API errors
+async function retryOperation<T>(operation: () => Promise<T>, retries = 2, delay = 1000): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (retries > 0) {
+      console.warn(`Gemini API call failed, retrying... Attempts left: ${retries}`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return retryOperation(operation, retries - 1, delay * 2);
+    }
+    throw error;
+  }
+}
+
 export const processAudioWithGemini = async (audioBlob: Blob): Promise<ExpenseResponse> => {
   // Use the declared process.env.API_KEY
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -78,37 +92,56 @@ export const processAudioWithGemini = async (audioBlob: Blob): Promise<ExpenseRe
     6. Calculate the total sum.
   `;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              mimeType: audioBlob.type || 'audio/webm',
-              data: base64Audio
+  // Wrap the entire API call in a retry block
+  return retryOperation(async () => {
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: {
+          parts: [
+            {
+              inlineData: {
+                mimeType: audioBlob.type || 'audio/webm',
+                data: base64Audio
+              }
+            },
+            {
+              text: "Please analyze this audio for expenses."
             }
-          },
-          {
-            text: "Please analyze this audio for expenses."
-          }
-        ]
-      },
-      config: {
-        systemInstruction: systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema: responseSchema,
-        temperature: 0.1 // Low temperature for factual extraction
-      }
-    });
+          ]
+        },
+        config: {
+          systemInstruction: systemInstruction,
+          responseMimeType: "application/json",
+          responseSchema: responseSchema,
+          temperature: 0.1, // Low temperature for factual extraction
+          // Lower safety settings to prevent false positives on normal speech
+          safetySettings: [
+            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
+            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
+          ],
+        }
+      });
 
-    if (response.text) {
-      return JSON.parse(response.text) as ExpenseResponse;
-    } else {
-      throw new Error("Empty response from Gemini");
+      if (response.text) {
+        // Robust cleaning of the response text before parsing
+        let cleanText = response.text.trim();
+        // Remove markdown formatting if present (Gemini sometimes wraps JSON in ```json ... ```)
+        if (cleanText.startsWith('```json')) {
+            cleanText = cleanText.replace(/^```json/, '').replace(/```$/, '');
+        } else if (cleanText.startsWith('```')) {
+            cleanText = cleanText.replace(/^```/, '').replace(/```$/, '');
+        }
+        
+        return JSON.parse(cleanText) as ExpenseResponse;
+      } else {
+        throw new Error("Empty response from Gemini");
+      }
+    } catch (error) {
+      console.error("Gemini API Error (Attempt failed):", error);
+      throw error;
     }
-  } catch (error) {
-    console.error("Gemini API Error:", error);
-    throw error;
-  }
+  });
 };
