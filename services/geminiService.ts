@@ -1,6 +1,13 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ExpenseResponse } from '../types';
 
+// Manual declaration to satisfy TypeScript without strict node types
+declare const process: {
+  env: {
+    API_KEY: string;
+  };
+};
+
 const blobToBase64 = (blob: Blob): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -15,6 +22,7 @@ const blobToBase64 = (blob: Blob): Promise<string> => {
 };
 
 export const processAudioWithGemini = async (audioBlob: Blob): Promise<ExpenseResponse> => {
+  // Use the declared process.env.API_KEY
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const base64Audio = await blobToBase64(audioBlob);
 
